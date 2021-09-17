@@ -1,0 +1,65 @@
+---
+version: '3.4'
+services:
+  sync-core:
+    image: docker.pkg.github.com/nsone/daitan/standalone_cloudsync_flat:${DDI_SYNC_IMAGE_TAG:-latest}
+    ports:
+      - "8095:443"
+    container_name: sync-core
+    # healthcheck: #Waiting for sync healthcheck be implemented
+    networks: #Networks this container will be connected to
+      - default
+      # - ddi_default #Default DDI network
+    healthcheck:
+      test: [ "CMD", "/app/healthcheck.sh" ]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+    environment:
+      TZ: ${TZ:-UTC}
+      DDI_SYNC_CONFIG_FILE: ${DDI_SYNC_CONFIG_FILE:-/opt/cloudsync/config/config.yml}
+      DDI_SYNC_READ_WORKERS: ${DDI_SYNC_READ_WORKERS:-4}
+      DDI_SYNC_WRITE_PRODUCT_QUEUE: ${DDI_SYNC_WRITE_PRODUCT_QUEUE:-1000}
+      DDI_SYNC_CREDENTIAL_STORE: ${DDI_SYNC_CREDENTIAL_STORE:-14}
+      DDI_SYNC_READ_JOB_QUEUE: ${DDI_SYNC_READ_JOB_QUEUE:-2024}
+      DDI_SYNC_READ_PRODUCT_QUEUE: ${DDI_SYNC_READ_PRODUCT_QUEUE:-1342}
+      DDI_SYNC_WRITE_WORKERS: ${DDI_SYNC_WRITE_WORKERS:-14}
+      DDI_SYNC_WRITE_JOB_QUEUE: ${DDI_SYNC_WRITE_JOB_QUEUE:-2024}
+      DDI_SYNC_REST_SERVER_PORT: ${REST_SERVER_PORT:-8096}
+      DDI_SYNC_JANITOR_CRON_EXP: ${JANITOR_CRON_EXP:-@every 5m}
+      DDI_SYNC_DATABASE_PATH: ${DDI_SYNC_DATABASE_PATH:-/app/database/sync-data.db}
+      DDI_SYNC_CERTIFICATE_NAME: ${DDI_SYNC_CERTIFICATE_NAME:-cloudsync.crt}
+      DDI_SYNC_CERTIFICATE_KEY_NAME: ${DDI_SYNC_CERTIFICATE_KEY_NAME:-cloudsync.key}
+      DDI_SYNC_SYSLOG_HOST: ${DDI_SYNC_SYSLOG_HOST}
+      DDI_SYNC_SYSLOG_PORT: ${DDI_SYNC_SYSLOG_PORT}
+      DDI_SYNC_SYSLOG_FACILITY: ${DDI_SYNC_SYSLOG_FACILITY:-1}
+      DDI_SYNC_SYSLOG_TAG: ${DDI_SYNC_SYSLOG_TAG:-CloudSync}
+      DDI_SYNC_SYSLOG_PROTOCOL: ${DDI_SYNC_SYSLOG_PROTOCOL:-tcp}
+    restart: unless-stopped
+    stop_grace_period: "true"
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+    volumes:
+      - type: volume
+        source: config
+        target: /app/config
+        volume:
+          nocopy: true
+      - type: volume
+        source: database
+        target: /app/database
+        volume:
+          nocopy: true
+networks:
+  default:
+    driver: bridge
+  #When loading DDI containers from it's own docker-compose
+  #We must connect cloudsync to its network to be able to communicate with it
+  # ddi_default:
+     # external: true
+volumes:
+  config:
+  database:
